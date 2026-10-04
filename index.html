@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="cs" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDR2 • Polní Pošta & Spisy</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cedarville+Cursive&family=Oswald:wght@500;700&family=Special+Elite&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        western: ['Oswald', 'sans-serif'],
+                        typewriter: ['Special Elite', 'monospace'],
+                        handwriting: ['Cedarville Cursive', 'cursive'],
+                    },
+                    colors: {
+                        parchment: {
+                            DEFAULT: '#f2e3bc',
+                            dark: '#dfcca2',
+                            light: '#faf3de',
+                            line: '#d9c293'
+                        },
+                        leather: {
+                            DEFAULT: '#1f100a',
+                            dark: '#120805',
+                            light: '#2d180f'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #050201;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #180b05 0%, #030100 100%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E");
+            color: #2c221e;
+            font-family: 'Special Elite', monospace;
+            overflow-x: hidden;
+        }
+
+        .leather-book-container {
+            background: linear-gradient(145deg, #2b170f 0%, #180c07 60%, #0d0603 100%);
+            box-shadow: 
+                0 40px 90px rgba(0, 0, 0, 0.95), 
+                inset 0 0 60px rgba(0, 0, 0, 0.8),
+                0 0 0 4px #3d2217,
+                0 0 0 10px #080301;
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .book-spine {
+            width: 32px;
+            background: linear-gradient(90deg, 
+                #331b11 0%, 
+                #110704 30%, 
+                #080301 50%, 
+                #110704 70%, 
+                #331b11 100%);
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9);
+            z-index: 30;
+            position: relative;
+        }
+        .book-spine::after {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0; left: 50%;
+            width: 2px;
+            transform: translateX(-50%);
+            background: repeating-linear-gradient(
+                to bottom,
+                #5a3825 0px,
+                #5a3825 8px,
+                transparent 8px,
+                transparent 16px
+            );
+            opacity: 0.6;
+        }
+
+        .page-left {
+            background-color: #f2e3bc;
+            background-image: 
+                linear-gradient(to right, #ded0ab 0%, rgba(242, 227, 188, 0.95) 12%, rgba(242, 227, 188, 1) 100%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            box-shadow: inset -18px 0 25px -12px rgba(60, 30, 10, 0.3);
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
+        }
+
+        .page-right {
+            background-color: #f2e3bc;
+            background-image: 
+                linear-gradient(to left, #ded0ab 0%, rgba(242, 227, 188, 0.95) 12%, rgba(242, 227, 188, 1) 100%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            box-shadow: inset 18px 0 25px -12px rgba(60, 30, 10, 0.3);
+            border-top-right-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+
+        .parchment-modal {
+            background-color: #f2e3bc;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8), inset 0 0 30px rgba(80,40,10,0.15);
+        }
+
+        @keyframes burnEffect {
+            0% { filter: brightness(1) sepia(0); transform: scale(1); background-color: rgba(242, 227, 188, 0.4); }
+            30% { filter: brightness(0.6) sepia(1) hue-rotate(-20deg); background-color: rgba(160, 60, 10, 0.5); box-shadow: inset 0 0 50px rgba(255, 90, 0, 0.7); }
+            70% { filter: brightness(0.15) grayscale(1); color: #ff3300; background-color: rgba(15, 8, 4, 0.95); transform: scale(0.98) rotate(0.3deg); }
+            100% { filter: brightness(0) invert(0); opacity: 0; transform: scale(0.94) translateY(12px); }
+        }
+
+        .burning {
+            animation: burnEffect 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ash-particle {
+            position: absolute;
+            background: #ff5722;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: flyAsh 1.5s ease-out forwards;
+        }
+        @keyframes flyAsh {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        ::-webkit-scrollbar-thumb { background: #6b4d32; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a3321; }
+
+        .stamp {
+            border: 2px double #9e2a2b;
+            color: #9e2a2b;
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            transform: rotate(-3deg);
+            letter-spacing: 1.5px;
+        }
+
+        @keyframes flyAway {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+            50% { transform: translate(250px, -180px) rotate(15deg) scale(0.7); opacity: 0.9; }
+            100% { transform: translate(600px, -400px) rotate(30deg) scale(0.2); opacity: 0; }
+        }
+        .pigeon-flying {
+            animation: flyAway 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col items-center justify-center p-2 sm:p-4">
+
+    <!-- PŘIHLAŠOVACÍ / REGISTRAČNÍ OBRAZOVKA (Když hráč není přihlášen) -->
+    <div id="auth-overlay" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-3">
+        <div class="w-full max-w-sm parchment-modal p-6 rounded-lg shadow-2xl border-4 border-leather relative text-center">
+            <span class="text-4xl">🦅</span>
+            <h2 class="font-western text-xl text-amber-950 uppercase tracking-widest mt-1">RDR2 • Polní Pošta</h2>
+            <p class="font-typewriter text-xs text-amber-900/70 mb-4">Vstup do knižního systému tábora</p>
+            
+            <div id="auth-error" class="mb-3 text-red-800 font-typewriter text-xs bg-red-900/10 p-2 rounded hidden"></div>
+
+            <!-- Přepínání přihlášení / registrace -->
+            <div class="flex mb-4 border-b border-amber-950/20">
+                <button onclick="switchAuthTab('login')" id="auth-tab-login" class="flex-1 pb-1 font-western text-xs uppercase tracking-wider text-amber-950 border-b-2 border-amber-900">Přihlásit se</button>
+                <button onclick="switchAuthTab('register')" id="auth-tab-register" class="flex-1 pb-1 font-western text-xs uppercase tracking-wider text-amber-900/50">Nový účet</button>
+            </div>
+
+            <!-- Formulář -->
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-3 text-left font-typewriter text-xs">
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Jméno / Přezdívka:</label>
+                    <input type="text" id="auth-username" required placeholder="např. Arthur Morgan" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Heslo:</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div id="register-extra" class="hidden">
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Poznámka / Kdo jsi v táboře:</label>
+                    <input type="text" id="auth-bio" placeholder="např. Ostřílený pistolník" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <button type="submit" id="auth-submit-btn" class="w-full py-2 bg-amber-900 hover:bg-amber-800 text-amber-100 rounded font-western uppercase text-xs tracking-wider shadow transition mt-2">Vstoupit do tábora</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header s ovládáním -->
+    <header class="w-full max-w-5xl mb-3 flex flex-wrap justify-between items-center px-2">
+        <div class="flex items-center space-x-2">
+            <span class="text-xl">🦅</span>
+            <div>
+                <h1 class="font-western text-xl sm:text-2xl text-amber-100 tracking-widest uppercase drop-shadow-md">Polní Pošta & Spisy</h1>
+                <div class="text-[10px] font-typewriter text-amber-300/75">Přihlášen: <span id="current-user-badge" class="font-bold text-amber-200">Nikdo</span></div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-1 sm:space-x-2 mt-1 sm:mt-0">
+            <button onclick="openTab('post')" id="btn-tab-post" class="px-2.5 py-1.5 bg-amber-900/90 hover:bg-amber-800 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-amber-700/50 transition shadow flex items-center space-x-1">
+                <span>✉</span> <span>Pošta</span>
+            </button>
+            <button onclick="openTab('dossiers')" id="btn-tab-dossiers" class="px-2.5 py-1.5 bg-stone-800/90 hover:bg-stone-700 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-stone-600/50 transition shadow flex items-center space-x-1">
+                <span>📁</span> <span>Spisy</span>
+            </button>
+            <button onclick="openTab('directory')" id="btn-tab-directory" class="px-2.5 py-1.5 bg-stone-800/90 hover:bg-stone-700 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-stone-600/50 transition shadow flex items-center space-x-1">
+                <span>👥</span> <span>Adresář</span>
+            </button>
+            <button onclick="openAccountModal()" title="Můj účet" class="px-2.5 py-1.5 bg-stone-800/90 hover:bg-stone-700 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-stone-600/50 transition shadow flex items-center space-x-1">
+                <span>⚙</span> <span>Účet</span>
+            </button>
+            <!-- Nenápadné tlačítko na Fullscreen -->
+            <button onclick="toggleFullscreen()" id="btn-fullscreen" title="Celá obrazovka" class="px-2 py-1.5 bg-stone-900/80 hover:bg-stone-800 text-amber-200/70 hover:text-amber-100 rounded border border-stone-700 transition text-xs">
+                🔲
+            </button>
+            <button onclick="logout()" title="Odhlásit se" class="px-2 py-1.5 bg-red-950/80 hover:bg-red-900 text-amber-100 rounded border border-red-800 transition shadow text-xs">
+                🚪
+            </button>
+        </div>
+    </header>
+
+    <!-- HLAVNÍ KNIHA -->
+    <main class="w-full max-w-5xl flex-1 flex flex-col leather-book-container overflow-hidden min-h-[600px] max-h-[680px]">
+        
+        <div class="bg-[#100704] px-6 py-2.5 border-b border-amber-950 flex justify-between items-center text-[11px] font-western text-amber-200/80 uppercase tracking-widest shadow-inner">
+            <div class="flex items-center space-x-2">
+                <span class="flex items-center space-x-1 text-amber-400 font-bold"><span>📖</span> <span id="current-section-title">Polní pošta</span></span>
+            </div>
+            <div class="text-amber-400/50 font-typewriter">
+                RDR2 • ARTHUR'S JOURNAL (SECURED)
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+            
+            <!-- LEVÁ STRÁNKA -->
+            <div class="w-full md:w-1/2 page-left p-5 sm:p-6 flex flex-col border-b md:border-b-0 overflow-y-auto">
+                
+                <!-- Pošta -->
+                <div id="panel-post-left" class="space-y-3">
+                    <div class="flex justify-between items-center border-b-2 border-amber-900/30 pb-2">
+                        <h2 class="font-western text-base sm:text-lg text-amber-950 uppercase tracking-wide flex items-center space-x-1.5">
+                            <span>📬</span> <span>Doručené zprávy</span>
+                        </h2>
+                        <button onclick="openNewLetterModal()" class="px-2.5 py-1 bg-amber-900 hover:bg-amber-800 text-amber-100 font-western text-xs rounded shadow transition flex items-center space-x-1">
+                            <span>➕</span> <span>Napsat</span>
+                        </button>
+                    </div>
+                    <div id="letters-list" class="space-y-2.5 mt-2">Načítání zpráv...</div>
+                </div>
+
+                <!-- Spisy -->
+                <div id="panel-dossiers-left" class="space-y-3 hidden">
+                    <div class="flex justify-between items-center border-b-2 border-amber-900/30 pb-2">
+                        <h2 class="font-western text-base sm:text-lg text-amber-950 uppercase tracking-wide flex items-center space-x-1.5">
+                            <span>📁</span> <span>Složka Spisů</span>
+                        </h2>
+                        <button onclick="openNewDossierModal()" class="px-2.5 py-1 bg-amber-900 hover:bg-amber-800 text-amber-100 font-western text-xs rounded shadow transition flex items-center space-x-1">
+                            <span>➕</span> <span>Osoba</span>
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="dossier-search" oninput="renderDossiersList()" placeholder="Hledat osobu, alias..." class="w-full bg-amber-50/80 border border-amber-900/30 rounded px-2.5 py-1.5 text-xs font-typewriter focus:outline-none focus:ring-1 focus:ring-amber-800">
+                    </div>
+                    <div id="dossiers-list" class="space-y-2.5 mt-2">Načítání spisů...</div>
+                </div>
+
+                <!-- Adresář -->
+                <div id="panel-directory-left" class="space-y-3 hidden">
+                    <div class="flex justify-between items-center border-b-2 border-amber-900/30 pb-2">
+                        <h2 class="font-western text-base sm:text-lg text-amber-950 uppercase tracking-wide flex items-center space-x-1.5">
+                            <span>👥</span> <span>Adresář tábora</span>
+                        </h2>
+                    </div>
+                    <p class="font-typewriter text-[11px] text-amber-900/80">Seznam všech registrovaných osob, kterým můžeš odeslat holuba:</p>
+                    <div id="directory-list" class="space-y-2 mt-2">Načítání adresáře...</div>
+                </div>
+
+            </div>
+
+            <!-- STŘEDOVÝ ŽLÁBEK VAZBY -->
+            <div class="hidden md:block book-spine"></div>
+
+            <!-- PRAVÁ STRÁNKA -->
+            <div class="w-full md:w-1/2 page-right p-5 sm:p-6 flex flex-col overflow-y-auto relative">
+                
+                <div id="right-empty-state" class="flex-1 flex flex-col items-center justify-center text-center p-6 text-amber-900/60">
+                    <span class="text-4xl mb-2 opacity-60">📜</span>
+                    <h3 class="font-western text-lg uppercase tracking-wider mb-1">Žádný dokument nevybrán</h3>
+                    <p class="font-typewriter text-[11px] max-w-xs">Vyberte položku ze seznamu vlevo pro zobrazení obsahu.</p>
+                </div>
+
+                <!-- Prohlížeč dopisů -->
+                <div id="right-letter-viewer" class="flex-1 flex flex-col hidden space-y-3">
+                    <div class="flex justify-between items-start border-b border-amber-900/30 pb-2">
+                        <div>
+                            <span id="view-letter-type" class="text-[10px] font-western uppercase tracking-widest px-2 py-0.5 rounded bg-amber-900/20 text-amber-900">Telegram</span>
+                            <h3 id="view-letter-subject" class="font-western text-xl text-amber-950 mt-0.5">Předmět dopisu</h3>
+                            <div class="font-typewriter text-[11px] text-amber-900/70 mt-0.5 flex space-x-2">
+                                <span id="view-letter-sender">Od: Šerif Malloy</span>
+                                <span>•</span>
+                                <span id="view-letter-date">14. říjen 1899</span>
+                            </div>
+                        </div>
+                        <div class="flex space-x-1.5">
+                            <button onclick="burnCurrentLetter()" title="Spálit dopis v ohni" class="p-1.5 bg-amber-900/20 hover:bg-red-900/30 hover:text-red-900 text-amber-900 rounded transition text-xs">
+                                🔥
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 font-handwriting text-lg sm:text-xl text-stone-900 leading-relaxed p-4 bg-amber-50/40 rounded border border-amber-900/10 overflow-y-auto min-h-[180px] transition-all shadow-inner" id="view-letter-body">
+                        Zde bude text dopisu...
+                    </div>
+
+                    <div id="reply-action-container" class="pt-2 border-t border-amber-900/20 flex justify-between items-center">
+                        <span class="text-[10px] font-typewriter text-amber-900/60">Holub připraven k odletu</span>
+                        <button onclick="openReplyModal()" class="px-3 py-1.5 bg-amber-900 hover:bg-amber-800 text-amber-100 font-western text-xs rounded shadow transition flex items-center space-x-1.5">
+                            <span>🕊️</span> <span>Odpovědět holubem</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Prohlížeč spisů -->
+                <div id="right-dossier-viewer" class="flex-1 flex flex-col hidden space-y-3">
+                    <div class="flex justify-between items-start border-b border-amber-900/30 pb-2">
+                        <div>
+                            <span id="view-dossier-status" class="text-[10px] font-western uppercase tracking-widest px-2 py-0.5 rounded stamp">Hledaný</span>
+                            <h3 id="view-dossier-name" class="font-western text-xl text-amber-950 mt-0.5">Jméno Osobnosti</h3>
+                            <div class="font-typewriter text-[11px] text-amber-900/70 mt-0.5 flex space-x-2">
+                                <span id="view-dossier-alias">Alias: 'The Snake'</span>
+                                <span>•</span>
+                                <span id="view-dossier-bounty">Odměna: $250.00</span>
+                            </div>
+                        </div>
+                        <div class="flex space-x-1.5">
+                            <button onclick="openEditDossierModal()" title="Upravit spis" class="p-1.5 bg-amber-900/20 hover:bg-amber-900/40 text-amber-900 rounded transition text-xs">
+                                ✒
+                            </button>
+                            <button onclick="deleteCurrentDossier()" title="Smazat spis" class="p-1.5 bg-amber-900/20 hover:bg-red-900/30 hover:text-red-900 text-amber-900 rounded transition text-xs">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 font-typewriter text-xs sm:text-sm text-stone-900 leading-relaxed p-4 bg-amber-50/40 rounded border border-amber-900/10 overflow-y-auto min-h-[180px] space-y-2 shadow-inner" id="view-dossier-notes">
+                        Zde budou poznámky o postavě...
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+    
+    <!-- MODAL: Nový dopis -->
+    <div id="modal-letter" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="w-full max-w-md parchment-modal p-6 rounded-lg shadow-2xl border-4 border-leather relative">
+            <h3 class="font-western text-lg text-amber-950 uppercase mb-3 flex items-center space-x-2 border-b border-amber-900/30 pb-2">
+                <span>🕊️</span> <span>Odeslat poštu holubem</span>
+            </h3>
+            <form onsubmit="handleSendLetter(event)" class="space-y-3 font-typewriter text-xs">
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Typ zprávy:</label>
+                    <select id="new-letter-type" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                        <option value="Polní Dopis">Polní Dopis</option>
+                        <option value="Telegram">Telegram</option>
+                        <option value="Tajná Zpráva">Tajná Zpráva</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Příjemce (napiš jméno):</label>
+                    <input type="text" id="new-letter-recipient" required placeholder="např. Arthur Morgan" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Předmět:</label>
+                    <input type="text" id="new-letter-subject" required placeholder="např. Setkání u staré stodoly..." class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Text zprávy:</label>
+                    <textarea id="new-letter-body" rows="4" required placeholder="Napište svůj vzkaz..." class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 font-handwriting text-base"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-1">
+                    <button type="button" onclick="closeModals()" class="px-3 py-1.5 bg-stone-300 hover:bg-stone-400 text-stone-800 rounded font-western uppercase text-[11px]">Zrušit</button>
+                    <button type="submit" class="px-3 py-1.5 bg-amber-900 hover:bg-amber-800 text-amber-100 rounded font-western uppercase text-[11px] flex items-center space-x-1">
+                        <span>Odeslat</span> <span>🦅</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Nový spis -->
+    <div id="modal-dossier" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="w-full max-w-md parchment-modal p-6 rounded-lg shadow-2xl border-4 border-leather relative">
+            <h3 class="font-western text-lg text-amber-950 uppercase mb-3 flex items-center space-x-2 border-b border-amber-900/30 pb-2">
+                <span>📁</span> <span>Osobní spis / Záznam</span>
+            </h3>
+            <form onsubmit="handleSaveDossier(event)" class="space-y-3 font-typewriter text-xs">
+                <input type="hidden" id="dossier-edit-id">
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Jméno a příjmení:</label>
+                    <input type="text" id="new-dossier-name" required placeholder="např. Elijah McGovern" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Alias:</label>
+                        <input type="text" id="new-dossier-alias" placeholder="např. Had" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Odměna ($):</label>
+                        <input type="text" id="new-dossier-bounty" placeholder="např. 250.00" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Poznámky:</label>
+                    <textarea id="new-dossier-notes" rows="4" required placeholder="Zápisky o postavě..." class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-1">
+                    <button type="button" onclick="closeModals()" class="px-3 py-1.5 bg-stone-300 hover:bg-stone-400 text-stone-800 rounded font-western uppercase text-[11px]">Zrušit</button>
+                    <button type="submit" class="px-3 py-1.5 bg-amber-900 hover:bg-amber-800 text-amber-100 rounded font-western uppercase text-[11px]">Uložit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Správa vlastního účtu -->
+    <div id="modal-account" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="w-full max-w-sm parchment-modal p-6 rounded-lg shadow-2xl border-4 border-leather relative">
+            <h3 class="font-western text-lg text-amber-950 uppercase mb-3 flex items-center space-x-2 border-b border-amber-900/30 pb-2">
+                <span>⚙️</span> <span>Můj účet v táboře</span>
+            </h3>
+            <form onsubmit="handleUpdateAccount(event)" class="space-y-3 font-typewriter text-xs">
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Moje jméno:</label>
+                    <input type="text" id="account-username" required class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Nové heslo (nech prázdné pro zachování):</label>
+                    <input type="password" id="account-password" placeholder="Nové heslo..." class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Peníze v bance ($):</label>
+                    <input type="text" id="account-bank" placeholder="např. 1250.50" class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div>
+                    <label class="block font-western uppercase text-amber-900 text-[11px] mb-1">Poznámka / Bio:</label>
+                    <input type="text" id="account-bio" placeholder="Něco o tobě..." class="w-full bg-amber-50 border border-amber-900/40 rounded p-1.5 text-stone-900 text-xs">
+                </div>
+                <div class="flex justify-end space-x-2 pt-1">
+                    <button type="button" onclick="closeModals()" class="px-3 py-1.5 bg-stone-300 hover:bg-stone-400 text-stone-800 rounded font-western uppercase text-[11px]">Zrušit</button>
+                    <button type="submit" class="px-3 py-1.5 bg-amber-900 hover:bg-amber-800 text-amber-100 rounded font-western uppercase text-[11px]">Uložit změny</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Animace letícího holuba -->
+    <div id="pigeon-overlay" class="fixed inset-0 pointer-events-none z-50 flex items-center justify-center hidden">
+        <div class="text-6xl pigeon-flying">🦅</div>
+        <div class="absolute bottom-16 bg-black/80 border border-amber-500/40 text-amber-200 px-6 py-2 rounded-full font-western tracking-wider uppercase animate-pulse shadow-2xl text-xs sm:text-sm">
+            Holub vzlétl k příjemci...
+        </div>
+    </div>
+
+    <script>
+        // --- SUPABASE NASTAVENÍ ---
+        const SUPABASE_URL = 'https://hdgaobqejxcgsgkixfrg.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhkZ2FvYnFlanhjZ3Nna2l4ZnJnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTA2NTIzNSwiZXhwIjoyMTA2NjQxMjM1fQ.qUpvFwE5ZTlQIuiemAj3_ZFEbyFEAgZQrYvUGpL-CBc';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = JSON.parse(localStorage.getItem('rdr2_current_user')) || null;
+        let authMode = 'login'; // 'login' nebo 'register'
+        let currentTab = 'post';
+        let selectedLetterId = null;
+        let selectedDossierId = null;
+        let wakeLock = null; // Wake Lock API pro zabránění uspání / Chrome notifikacím
+
+        let letters = [];
+        let dossiers = [];
+        let usersList = [];
+
+        window.onload = function() {
+            if (currentUser) {
+                document.getElementById('auth-overlay').classList.add('hidden');
+                updateUserBadge();
+                initApp();
+            }
+        };
+
+        // --- FULLSCREEN & WAKE LOCK ---
+        async function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                try {
+                    await document.documentElement.requestFullscreen();
+                    document.getElementById('btn-fullscreen').innerText = '🗗';
+                    await requestWakeLock();
+                } catch (err) {
+                    console.error("Chyba při přepínání na celou obrazovku:", err);
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    document.getElementById('btn-fullscreen').innerText = '🔲';
+                    releaseWakeLock();
+                }
+            }
+        }
+
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => {
+                        wakeLock = null;
+                    });
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        }
+
+        // Obnovit Wake Lock při přepnutí záložky nebo návratu do okna
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+
+        function updateUserBadge() {
+            const badge = document.getElementById('current-user-badge');
+            if (!currentUser) {
+                badge.innerText = "Nikdo";
+                return;
+            }
+            let text = currentUser.username;
+            if (currentUser.bank !== undefined && currentUser.bank !== null && currentUser.bank !== '') {
+                text += ` | $${currentUser.bank}`;
+            }
+            badge.innerText = text;
+        }
+
+        function switchAuthTab(mode) {
+            authMode = mode;
+            const loginBtn = document.getElementById('auth-tab-login');
+            const regBtn = document.getElementById('auth-tab-register');
+            const regExtra = document.getElementById('register-extra');
+            const submitBtn = document.getElementById('auth-submit-btn');
+            const errorEl = document.getElementById('auth-error');
+            errorEl.classList.add('hidden');
+
+            if (mode === 'login') {
+                loginBtn.className = "flex-1 pb-1 font-western text-xs uppercase tracking-wider text-amber-950 border-b-2 border-amber-900";
+                regBtn.className = "flex-1 pb-1 font-western text-xs uppercase tracking-wider text-amber-900/50";
+                regExtra.classList.add('hidden');
+                submitBtn.innerText = "Vstoupit do tábora";
+            } else {
+                regBtn.className = "flex-1 pb-1 font-western text-xs uppercase tracking-wider text-amber-950 border-b-2 border-amber-900";
+                loginBtn.className = "flex-1 pb-1 font-western text-xs uppercase tracking-wider text-amber-900/50";
+                regExtra.classList.remove('hidden');
+                submitBtn.innerText = "Založit účet";
+            }
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const bio = document.getElementById('auth-bio').value.trim();
+            const errorEl = document.getElementById('auth-error');
+            errorEl.classList.add('hidden');
+
+            if (authMode === 'register') {
+                const { data: existing } = await _supabase.from('users').select('*').eq('username', username);
+                if (existing && existing.length > 0) {
+                    errorEl.innerText = "Tohle jméno už v táboře někdo má!";
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                const { data, error } = await _supabase.from('users').insert([{
+                    username: username,
+                    password: password,
+                    bio: bio || 'Člen tábora',
+                    bank: '0.00'
+                }]).select();
+
+                if (!error && data && data.length > 0) {
+                    currentUser = data[0];
+                    localStorage.setItem('rdr2_current_user', JSON.stringify(currentUser));
+                    document.getElementById('auth-overlay').classList.add('hidden');
+                    updateUserBadge();
+                    initApp();
+                } else {
+                    errorEl.innerText = "Chyba při registraci: " + (error ? error.message : 'Neznámá');
+                    errorEl.classList.remove('hidden');
+                }
+            } else {
+                const { data, error } = await _supabase.from('users').select('*').eq('username', username).eq('password', password);
+                if (!error && data && data.length > 0) {
+                    currentUser = data[0];
+                    localStorage.setItem('rdr2_current_user', JSON.stringify(currentUser));
+                    document.getElementById('auth-overlay').classList.add('hidden');
+                    updateUserBadge();
+                    initApp();
+                } else {
+                    errorEl.innerText = "Nesprávné jméno nebo heslo!";
+                    errorEl.classList.remove('hidden');
+                }
+            }
+        }
+
+        function logout() {
+            releaseWakeLock();
+            localStorage.removeItem('rdr2_current_user');
+            location.reload();
+        }
+
+        async function initApp() {
+            await loadUsers();
+            await loadLetters();
+            await loadDossiers();
+            setupRealtimeSubscription();
+        }
+
+        function setupRealtimeSubscription() {
+            _supabase
+                .channel('public:telegrams')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'telegrams' }, payload => {
+                    loadLetters();
+                })
+                .subscribe();
+
+            _supabase
+                .channel('public:dossiers')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'dossiers' }, payload => {
+                    loadDossiers();
+                })
+                .subscribe();
+
+            _supabase
+                .channel('public:users')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, payload => {
+                    loadUsers();
+                })
+                .subscribe();
+        }
+
+        async function loadUsers() {
+            const { data } = await _supabase.from('users').select('*').order('username', { ascending: true });
+            usersList = data || [];
+            
+            // Aktualizuj lokální objekt currentUser, pokud se změnila data v DB (např. banka)
+            if (currentUser) {
+                const me = usersList.find(u => u.id === currentUser.id);
+                if (me) {
+                    currentUser = me;
+                    localStorage.setItem('rdr2_current_user', JSON.stringify(currentUser));
+                    updateUserBadge();
+                }
+            }
+            renderDirectory();
+        }
+
+        async function loadLetters() {
+            const { data, error } = await _supabase
+                .from('telegrams')
+                .select('*')
+                .eq('recipient', currentUser.username)
+                .order('id', { ascending: false });
+
+            if (!error) {
+                letters = data || [];
+                if (currentTab === 'post') renderLettersList();
+            }
+        }
+
+        async function loadDossiers() {
+            const { data, error } = await _supabase
+                .from('dossiers')
+                .select('*')
+                .order('id', { ascending: false });
+
+            if (!error) {
+                dossiers = data || [];
+                if (currentTab === 'dossiers') renderDossiersList();
+            }
+        }
+
+        function openTab(tab) {
+            currentTab = tab;
+            const postBtn = document.getElementById('btn-tab-post');
+            const dossiersBtn = document.getElementById('btn-tab-dossiers');
+            const directoryBtn = document.getElementById('btn-tab-directory');
+
+            const postLeft = document.getElementById('panel-post-left');
+            const dossiersLeft = document.getElementById('panel-dossiers-left');
+            const directoryLeft = document.getElementById('panel-directory-left');
+            const titleEl = document.getElementById('current-section-title');
+
+            const letterViewer = document.getElementById('right-letter-viewer');
+            const dossierViewer = document.getElementById('right-dossier-viewer');
+            const emptyState = document.getElementById('right-empty-state');
+
+            emptyState.classList.remove('hidden');
+            letterViewer.classList.add('hidden');
+            dossierViewer.classList.add('hidden');
+
+            postBtn.className = "px-2.5 py-1.5 bg-stone-800/90 hover:bg-stone-700 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-stone-600/50 transition shadow flex items-center space-x-1";
+            dossiersBtn.className = "px-2.5 py-1.5 bg-stone-800/90 hover:bg-stone-700 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-stone-600/50 transition shadow flex items-center space-x-1";
+            directoryBtn.className = "px-2.5 py-1.5 bg-stone-800/90 hover:bg-stone-700 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-stone-600/50 transition shadow flex items-center space-x-1";
+
+            postLeft.classList.add('hidden');
+            dossiersLeft.classList.add('hidden');
+            directoryLeft.classList.add('hidden');
+
+            if (tab === 'post') {
+                postBtn.className = "px-2.5 py-1.5 bg-amber-900/90 hover:bg-amber-800 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-amber-700/50 transition shadow flex items-center space-x-1";
+                postLeft.classList.remove('hidden');
+                titleEl.innerText = "Polní pošta";
+                renderLettersList();
+            } else if (tab === 'dossiers') {
+                dossiersBtn.className = "px-2.5 py-1.5 bg-amber-900/90 hover:bg-amber-800 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-amber-700/50 transition shadow flex items-center space-x-1";
+                dossiersLeft.classList.remove('hidden');
+                titleEl.innerText = "Osobní spisy";
+                renderDossiersList();
+            } else if (tab === 'directory') {
+                directoryBtn.className = "px-2.5 py-1.5 bg-amber-900/90 hover:bg-amber-800 text-amber-100 font-western text-xs uppercase tracking-wider rounded border border-amber-700/50 transition shadow flex items-center space-x-1";
+                directoryLeft.classList.remove('hidden');
+                titleEl.innerText = "Adresář tábora";
+                renderDirectory();
+            }
+        }
+
+        function renderDirectory() {
+            const listEl = document.getElementById('directory-list');
+            listEl.innerHTML = '';
+
+            if (usersList.length === 0) {
+                listEl.innerHTML = `<div class="text-center font-typewriter text-xs text-amber-900/60 py-6">Žádní uživatelé.</div>`;
+                return;
+            }
+
+            usersList.forEach(u => {
+                const isMe = u.id === currentUser.id;
+                const div = document.createElement('div');
+                div.className = `p-2.5 rounded border bg-amber-50/60 border-amber-900/20 flex justify-between items-center`;
+                div.innerHTML = `
+                    <div>
+                        <h4 class="font-western text-sm text-amber-950">${u.username} ${isMe ? '<span class="text-[10px] bg-amber-900 text-amber-100 px-1.5 py-0.5 rounded font-typewriter">Já</span>' : ''}</h4>
+                        <p class="font-typewriter text-[11px] text-stone-600">${u.bio || 'Bez popisu'}</p>
+                    </div>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        function renderLettersList() {
+            const listEl = document.getElementById('letters-list');
+            listEl.innerHTML = '';
+
+            if (letters.length === 0) {
+                listEl.innerHTML = `<div class="text-center font-typewriter text-xs text-amber-900/60 py-6">Žádné doručené zprávy.</div>`;
+                return;
+            }
+
+            letters.forEach(letter => {
+                const isSelected = selectedLetterId === letter.id;
+                const div = document.createElement('div');
+                div.className = `p-2.5 rounded border transition cursor-pointer ${isSelected ? 'bg-amber-200/90 border-amber-800 shadow-sm' : 'bg-amber-50/60 border-amber-900/20 hover:bg-amber-100/60'}`;
+                div.onclick = () => selectLetter(letter.id);
+                div.innerHTML = `
+                    <div class="flex justify-between items-center text-[10px] font-typewriter text-amber-900/70 mb-0.5">
+                        <span class="font-bold">${letter.tag || 'Telegram'} (Příchozí)</span>
+                        <span>${letter.date || '1899'}</span>
+                    </div>
+                    <h4 class="font-western text-sm sm:text-base text-amber-950 truncate">${letter.title || 'Bez předmětu'}</h4>
+                    <p class="font-typewriter text-[11px] text-stone-600 truncate mt-0.5">Od: ${letter.sender}</p>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        function selectLetter(id) {
+            selectedLetterId = id;
+            renderLettersList();
+
+            const letter = letters.find(l => l.id == id);
+            if (!letter) return;
+
+            document.getElementById('right-empty-state').classList.add('hidden');
+            document.getElementById('right-dossier-viewer').classList.add('hidden');
+            const viewer = document.getElementById('right-letter-viewer');
+            viewer.classList.remove('hidden');
+
+            document.getElementById('view-letter-type').innerText = letter.tag || 'Telegram';
+            document.getElementById('view-letter-subject').innerText = letter.title || '';
+            document.getElementById('view-letter-sender').innerText = 'Od: ' + letter.sender + ' | Pro: ' + letter.recipient;
+            document.getElementById('view-letter-date').innerText = letter.date || '1899';
+            
+            const bodyEl = document.getElementById('view-letter-body');
+            bodyEl.classList.remove('burning');
+            bodyEl.innerText = letter.body;
+        }
+
+        function openNewLetterModal() {
+            document.getElementById('modal-letter').classList.remove('hidden');
+        }
+
+        function openReplyModal() {
+            const letter = letters.find(l => l.id == selectedLetterId);
+            if (!letter) return;
+            document.getElementById('modal-letter').classList.remove('hidden');
+            document.getElementById('new-letter-recipient').value = letter.sender;
+            document.getElementById('new-letter-subject').value = "Odpověď: " + (letter.title || '');
+        }
+
+        async function handleSendLetter(e) {
+            e.preventDefault();
+            const recipient = document.getElementById('new-letter-recipient').value.trim();
+            const title = document.getElementById('new-letter-subject').value;
+            const body = document.getElementById('new-letter-body').value;
+            const tag = document.getElementById('new-letter-type').value;
+
+            const newLetter = {
+                sender: currentUser.username,
+                recipient: recipient,
+                title: title,
+                body: body,
+                tag: tag,
+                date: new Date().toLocaleDateString('cs-CZ')
+            };
+
+            const { data, error } = await _supabase.from('telegrams').insert([newLetter]).select();
+
+            if (!error) {
+                closeModals();
+                e.target.reset();
+
+                triggerPigeonAnimation(() => {});
+            } else {
+                alert("Chyba při odesílání: " + error.message);
+            }
+        }
+
+        function triggerPigeonAnimation(callback) {
+            const overlay = document.getElementById('pigeon-overlay');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                if (callback) callback();
+            }, 4800);
+        }
+
+        async function burnCurrentLetter() {
+            if (!selectedLetterId) return;
+            const bodyEl = document.getElementById('view-letter-body');
+            
+            for(let i=0; i<15; i++) {
+                const ash = document.createElement('div');
+                ash.className = 'ash-particle';
+                ash.style.width = (Math.random() * 6 + 3) + 'px';
+                ash.style.height = ash.style.width;
+                ash.style.left = (Math.random() * 80 + 10) + '%';
+                ash.style.top = (Math.random() * 80 + 10) + '%';
+                ash.style.setProperty('--tx', (Math.random() * 200 - 100) + 'px');
+                ash.style.setProperty('--ty', (Math.random() * -150 - 50) + 'px');
+                bodyEl.appendChild(ash);
+            }
+
+            bodyEl.classList.add('burning');
+
+            setTimeout(async () => {
+                const { error } = await _supabase.from('telegrams').delete().eq('id', selectedLetterId);
+                if (!error) {
+                    selectedLetterId = null;
+                    await loadLetters();
+                    document.getElementById('right-letter-viewer').classList.add('hidden');
+                    document.getElementById('right-empty-state').classList.remove('hidden');
+                } else {
+                    alert("Chyba při mazání: " + error.message);
+                }
+            }, 1600);
+        }
+
+        function renderDossiersList() {
+            const listEl = document.getElementById('dossiers-list');
+            const query = (document.getElementById('dossier-search').value || '').toLowerCase();
+            listEl.innerHTML = '';
+
+            let filtered = dossiers.filter(d => 
+                (d.name && d.name.toLowerCase().includes(query)) || 
+                (d.alias && d.alias.toLowerCase().includes(query)) ||
+                (d.notes && d.notes.toLowerCase().includes(query))
+            );
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div class="text-center font-typewriter text-xs text-amber-900/60 py-6">Žádné spisy.</div>`;
+                return;
+            }
+
+            filtered.forEach(dossier => {
+                const isSelected = selectedDossierId === dossier.id;
+                const div = document.createElement('div');
+                div.className = `p-2.5 rounded border transition cursor-pointer ${isSelected ? 'bg-amber-200/90 border-amber-800 shadow-sm' : 'bg-amber-50/60 border-amber-900/20 hover:bg-amber-100/60'}`;
+                div.onclick = () => selectDossier(dossier.id);
+                div.innerHTML = `
+                    <div class="flex justify-between items-center text-[10px] font-typewriter text-amber-900/70 mb-0.5">
+                        <span class="font-bold text-red-900">Odměna: $${dossier.bounty || '0'}</span>
+                    </div>
+                    <h4 class="font-western text-sm sm:text-base text-amber-950 truncate">${dossier.name || 'Neznámý'}</h4>
+                    <p class="font-typewriter text-[11px] text-stone-600 truncate mt-0.5">Alias: ${dossier.alias || 'žádný'}</p>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        function selectDossier(id) {
+            selectedDossierId = id;
+            renderDossiersList();
+
+            const dossier = dossiers.find(d => d.id == id);
+            if (!dossier) return;
+
+            document.getElementById('right-empty-state').classList.add('hidden');
+            document.getElementById('right-letter-viewer').classList.add('hidden');
+            const viewer = document.getElementById('right-dossier-viewer');
+            viewer.classList.remove('hidden');
+
+            document.getElementById('view-dossier-status').innerText = 'Hledaný / Spis';
+            document.getElementById('view-dossier-name').innerText = dossier.name || 'Neznámý';
+            document.getElementById('view-dossier-alias').innerText = "Alias: " + (dossier.alias || 'Není');
+            document.getElementById('view-dossier-bounty').innerText = "Odměna: $" + (dossier.bounty || '0');
+            
+            const notesText = dossier.notes || 'Bez poznámek.';
+            const notesEl = document.getElementById('view-dossier-notes');
+            notesEl.innerHTML = notesText.split('\n').map(p => `<p>${p}</p>`).join('');
+        }
+
+        function openNewDossierModal() {
+            document.getElementById('dossier-edit-id').value = '';
+            document.getElementById('new-dossier-name').value = '';
+            document.getElementById('new-dossier-alias').value = '';
+            document.getElementById('new-dossier-bounty').value = '';
+            document.getElementById('new-dossier-notes').value = '';
+            document.getElementById('modal-dossier').classList.remove('hidden');
+        }
+
+        function openEditDossierModal() {
+            const dossier = dossiers.find(d => d.id == selectedDossierId);
+            if (!dossier) return;
+            document.getElementById('dossier-edit-id').value = dossier.id;
+            document.getElementById('new-dossier-name').value = dossier.name || '';
+            document.getElementById('new-dossier-alias').value = dossier.alias || '';
+            document.getElementById('new-dossier-bounty').value = dossier.bounty || '';
+            document.getElementById('new-dossier-notes').value = dossier.notes || '';
+            document.getElementById('modal-dossier').classList.remove('hidden');
+        }
+
+        async function handleSaveDossier(e) {
+            e.preventDefault();
+            const editId = document.getElementById('dossier-edit-id').value;
+            const name = document.getElementById('new-dossier-name').value;
+            const alias = document.getElementById('new-dossier-alias').value;
+            const bounty = document.getElementById('new-dossier-bounty').value;
+            const notes = document.getElementById('new-dossier-notes').value;
+
+            if (editId) {
+                const { error } = await _supabase.from('dossiers').update({
+                    name: name,
+                    alias: alias,
+                    bounty: bounty,
+                    notes: notes
+                }).eq('id', editId);
+
+                if (!error) {
+                    closeModals();
+                } else {
+                    alert("Chyba: " + error.message);
+                }
+            } else {
+                const newDossier = { name, alias, bounty, notes };
+                const { error } = await _supabase.from('dossiers').insert([newDossier]);
+
+                if (!error) {
+                    closeModals();
+                    e.target.reset();
+                } else {
+                    alert("Chyba: " + error.message);
+                }
+            }
+        }
+
+        async function deleteCurrentDossier() {
+            if (!selectedDossierId) return;
+            if (!confirm("Opravdu smazat tento spis?")) return;
+
+            const { error } = await _supabase.from('dossiers').delete().eq('id', selectedDossierId);
+            if (!error) {
+                selectedDossierId = null;
+                await loadDossiers();
+                document.getElementById('right-dossier-viewer').classList.add('hidden');
+                document.getElementById('right-empty-state').classList.remove('hidden');
+            }
+        }
+
+        function openAccountModal() {
+            document.getElementById('account-username').value = currentUser.username;
+            document.getElementById('account-password').value = '';
+            document.getElementById('account-bank').value = currentUser.bank || '';
+            document.getElementById('account-bio').value = currentUser.bio || '';
+            document.getElementById('modal-account').classList.remove('hidden');
+        }
+
+        async function handleUpdateAccount(e) {
+            e.preventDefault();
+            const newUsername = document.getElementById('account-username').value.trim();
+            const newPassword = document.getElementById('account-password').value;
+            const newBank = document.getElementById('account-bank').value.trim();
+            const newBio = document.getElementById('account-bio').value.trim();
+
+            let updateData = { username: newUsername, bio: newBio, bank: newBank };
+            if (newPassword) {
+                updateData.password = newPassword;
+            }
+
+            const { error } = await _supabase.from('users').update(updateData).eq('id', currentUser.id);
+
+            if (!error) {
+                currentUser.username = newUsername;
+                currentUser.bio = newBio;
+                currentUser.bank = newBank;
+                localStorage.setItem('rdr2_current_user', JSON.stringify(currentUser));
+                updateUserBadge();
+                closeModals();
+                alert("Účet byl úspěšně upraven!");
+                initApp();
+            } else {
+                alert("Chyba při úpravě účtu: " + error.message);
+            }
+        }
+
+        function closeModals() {
+            document.getElementById('modal-letter').classList.add('hidden');
+            document.getElementById('modal-dossier').classList.add('hidden');
+            document.getElementById('modal-account').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
